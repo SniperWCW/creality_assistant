@@ -29,7 +29,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
     def update_callback(updated_data):
         _LOGGER.debug("Dispatcher update received: %s", updated_data)
         for entity in list(entities):
-            entity.async_schedule_update_ha_state(True)
+            try:
+                entity.async_schedule_update_ha_state(True)
+            except Exception as err:
+                _LOGGER.error("Error updating entity %s: %s", entity.name, err)
 
     async_dispatcher_connect(hass, f"{UPDATE_SIGNAL}_{entry_id}", update_callback)
 
@@ -62,8 +65,17 @@ class ConnectionStatusSensor(SensorEntity):
     def extra_state_attributes(self):
         return {}
 
+    @property
+    def device_info(self):
+        config = self.hass.data[DOMAIN][self._entry_id]["config"]
+        return {
+            "identifiers": {(DOMAIN, self._entry_id)},
+            "name": f"Creality Printer {config.get('ip')}",
+            "manufacturer": "Creality",
+            "model": "Unknown Model"
+        }
+
     async def async_update(self):
-        # The state is updated via dispatcher; nothing is needed here.
         _LOGGER.debug("ConnectionStatusSensor updating state: %s", self.state)
 
 class CrealitySensor(SensorEntity):
@@ -85,6 +97,15 @@ class CrealitySensor(SensorEntity):
     def extra_state_attributes(self):
         return {}
 
+    @property
+    def device_info(self):
+        config = self.hass.data[DOMAIN][self._entry_id]["config"]
+        return {
+            "identifiers": {(DOMAIN, self._entry_id)},
+            "name": f"Creality Printer {config.get('ip')}",
+            "manufacturer": "Creality",
+            "model": "Unknown Model"
+        }
+
     async def async_update(self):
-        # The state is updated via dispatcher; nothing is needed here.
         _LOGGER.debug("CrealitySensor (%s) updating state: %s", self._sensor_key, self.state)
