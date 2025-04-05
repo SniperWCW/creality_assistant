@@ -1,9 +1,10 @@
 {
   "domain": "creality_assistant",
   "name": "Creality Assistant",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "documentation": "https://github.com/Chuffnugget/creality_assistant",
   "dependencies": [],
   "codeowners": ["@Chuffnugget"],
-  "requirements": ["websockets>=10.0"]
+  "requirements": ["websockets>=10.0"],
+  "config_flow": true
 }
