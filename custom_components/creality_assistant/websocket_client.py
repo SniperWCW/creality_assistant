@@ -19,7 +19,7 @@ class CrealityWebSocketClient:
         config = self.hass.data["creality_assistant"][self.entry_id]["config"]
         ip = config.get(CONF_IP)
         port = config.get(CONF_PORT)
-        password = config.get(CONF_PASSWORD)  # Optional use; not implemented here
+        password = config.get(CONF_PASSWORD)  # Optional, for future use
         url = f"ws://{ip}:{port}"
         _LOGGER.info("Connecting to %s", url)
 
@@ -27,6 +27,9 @@ class CrealityWebSocketClient:
             try:
                 async with websockets.connect(url) as websocket:
                     self.ws = websocket
+                    sensor_data = self.hass.data["creality_assistant"][self.entry_id]["sensor_data"]
+                    sensor_data["connection_status"] = "CONNECTED"
+                    async_dispatcher_send(self.hass, f"{UPDATE_SIGNAL}_{self.entry_id}", sensor_data)
                     _LOGGER.info("Connected to %s", url)
                     async for message in websocket:
                         try:
@@ -36,14 +39,14 @@ class CrealityWebSocketClient:
                             continue
 
                         # Update the shared sensor data dictionary
-                        sensor_data = self.hass.data["creality_assistant"][self.entry_id]["sensor_data"]
                         sensor_data.update(data)
-
-                        # Dispatch an update signal; sensors will listen for this
                         async_dispatcher_send(self.hass, f"{UPDATE_SIGNAL}_{self.entry_id}", sensor_data)
             except Exception as e:
                 _LOGGER.error("Error in websocket connection: %s", e)
-            # Wait a few seconds before reconnecting
+                sensor_data = self.hass.data["creality_assistant"][self.entry_id]["sensor_data"]
+                sensor_data["connection_status"] = f"ERROR: {e}"
+                async_dispatcher_send(self.hass, f"{UPDATE_SIGNAL}_{self.entry_id}", sensor_data)
+            # Wait a few seconds before trying to reconnect
             await asyncio.sleep(5)
 
     async def async_stop(self):
