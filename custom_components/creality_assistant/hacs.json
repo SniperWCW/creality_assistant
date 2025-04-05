@@ -1,0 +1,12 @@
+{
+  "name": "Creality Assistant",
+  "content_in_root": false,
+  "render_readme": true,
+  "domains": ["sensor"],
+  "country": "United Kingdom",
+  "quality_scale": "internal",
+  "hide": false,
+  "documentation": "https://github.com/Chuffnugget/creality_assistant",
+  "homeassistant": "2021.4.0",
+  "title": "Creality Assistant"
+}
