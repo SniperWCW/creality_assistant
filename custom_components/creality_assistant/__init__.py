@@ -28,17 +28,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.async_create_task(client.async_run())
     _LOGGER.debug("Started WebSocket client task for entry %s", entry.entry_id)
 
-    # Use the new API to forward setup for the sensor platform
-    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
-    _LOGGER.debug("Forwarded sensor setup for entry %s", entry.entry_id)
+    # Use the new API to forward setup for the sensor and camera platforms
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "camera"])
+    _LOGGER.debug("Forwarded sensor and camera setup for entry %s", entry.entry_id)
 
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
     _LOGGER.debug("Unloading entry %s", entry.entry_id)
-    # Unload the sensor platform first
+    # Unload the sensor and camera platforms
     unload_ok = await hass.config_entries.async_forward_entry_unload(entry, "sensor")
+    unload_ok &= await hass.config_entries.async_forward_entry_unload(entry, "camera")
     if unload_ok:
         client = hass.data[DOMAIN][entry.entry_id].get(DATA_CLIENT)
         if client:
