@@ -3,6 +3,7 @@
   "name": "Creality Assistant",
   "version": "0.0.4",
   "documentation": "https://github.com/Chuffnugget/creality_assistant",
+  "issue_tracker": "https://github.com/Chuffnugget/creality_assistant/issues",
   "dependencies": [],
   "codeowners": ["@Chuffnugget"],
   "requirements": ["websockets>=10.0"],
