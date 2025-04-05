@@ -16,17 +16,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN][entry.entry_id] = {}
     data = hass.data[DOMAIN][entry.entry_id]
     data["config"] = entry.data
-    data["sensor_data"] = {}  # This dictionary holds the latest sensor readings
+    # Initialize sensor data with connection status
+    data["sensor_data"] = {"connection_status": "DISCONNECTED"}
 
     # Start the WebSocket client task
     client = CrealityWebSocketClient(hass, entry.entry_id)
     data[DATA_CLIENT] = client
     hass.async_create_task(client.async_run())
 
-    # Forward setup to the sensor platform
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setup(entry, "sensor")
-    )
+    # Use the new API to forward setup for the sensor platform
+    await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
 
     return True
 
