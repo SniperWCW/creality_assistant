@@ -10,6 +10,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entry_id = entry.entry_id
     data = hass.data[DOMAIN][entry_id]
     sensor_data = data["sensor_data"]
+    _LOGGER.debug("Setting up sensors with initial sensor_data: %s", sensor_data)
 
     entities = []
 
@@ -22,9 +23,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
             entities.append(CrealitySensor(entry_id, key, value))
 
     async_add_entities(entities)
+    _LOGGER.debug("Added %d sensor entities", len(entities))
 
     # Listen for updates; when data changes, schedule an update for all sensors.
     def update_callback(updated_data):
+        _LOGGER.debug("Dispatcher update received: %s", updated_data)
         for entity in list(entities):
             entity.async_schedule_update_ha_state(True)
 
@@ -38,6 +41,7 @@ class ConnectionStatusSensor(SensorEntity):
         self._state = value
         self._attr_name = "Creality Connection Status"
         self._attr_unique_id = f"{entry_id}_connection_status"
+        _LOGGER.debug("Created ConnectionStatusSensor for entry %s", entry_id)
 
     @property
     def state(self):
@@ -60,7 +64,7 @@ class ConnectionStatusSensor(SensorEntity):
 
     async def async_update(self):
         # The state is updated via dispatcher; nothing is needed here.
-        pass
+        _LOGGER.debug("ConnectionStatusSensor updating state: %s", self.state)
 
 class CrealitySensor(SensorEntity):
     """Dynamic sensor for a Creality printer data key."""
@@ -70,6 +74,7 @@ class CrealitySensor(SensorEntity):
         self._state = value
         self._attr_name = f"Creality {sensor_key}"
         self._attr_unique_id = f"{entry_id}_{sensor_key}"
+        _LOGGER.debug("Created CrealitySensor for key '%s' in entry %s", sensor_key, entry_id)
 
     @property
     def state(self):
@@ -82,4 +87,4 @@ class CrealitySensor(SensorEntity):
 
     async def async_update(self):
         # The state is updated via dispatcher; nothing is needed here.
-        pass
+        _LOGGER.debug("CrealitySensor (%s) updating state: %s", self._sensor_key, self.state)
