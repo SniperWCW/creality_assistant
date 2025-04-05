@@ -1,7 +1,7 @@
 {
   "domain": "creality_assistant",
   "name": "Creality Assistant",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "documentation": "https://github.com/Chuffnugget/creality_assistant",
   "dependencies": [],
   "codeowners": ["@Chuffnugget"],
