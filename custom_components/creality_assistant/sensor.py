@@ -1,9 +1,12 @@
+import asyncio
+import logging
+
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from .const import DOMAIN, UPDATE_SIGNAL
-import logging
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up sensor platform for Creality Assistant."""
@@ -15,7 +18,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entities = []
 
     # Create the dedicated connection status sensor
-    entities.append(ConnectionStatusSensor(entry_id, "connection_status", sensor_data.get("connection_status", "DISCONNECTED")))
+    entities.append(
+        ConnectionStatusSensor(
+            entry_id, "connection_status", sensor_data.get("connection_status", "DISCONNECTED")
+        )
+    )
 
     # Create dynamic sensors for every other key present
     for key, value in sensor_data.items():
@@ -25,19 +32,23 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities(entities)
     _LOGGER.debug("Added %d sensor entities", len(entities))
 
-    # Listen for updates; when data changes, schedule an update for all sensors.
-    def update_callback(updated_data):
+    async def _async_update_entities(updated_data):
         _LOGGER.debug("Dispatcher update received: %s", updated_data)
-        for entity in list(entities):
-            try:
-                entity.async_schedule_update_ha_state(True)
-            except Exception as err:
-                _LOGGER.error("Error updating entity %s: %s", entity.name, err)
+        for entity in entities:
+            entity.async_schedule_update_ha_state(True)
+
+    def update_callback(updated_data):
+        # Schedule the async update on the main event loop safely
+        asyncio.run_coroutine_threadsafe(
+            _async_update_entities(updated_data), hass.loop
+        )
 
     async_dispatcher_connect(hass, f"{UPDATE_SIGNAL}_{entry_id}", update_callback)
 
+
 class ConnectionStatusSensor(SensorEntity):
     """Sensor that shows the connection status of the WebSocket."""
+
     def __init__(self, entry_id, sensor_key, value):
         self._entry_id = entry_id
         self._sensor_key = sensor_key
@@ -72,14 +83,16 @@ class ConnectionStatusSensor(SensorEntity):
             "identifiers": {(DOMAIN, self._entry_id)},
             "name": f"Creality Printer {config.get('ip')}",
             "manufacturer": "Creality",
-            "model": "Unknown Model"
+            "model": "Unknown Model",
         }
 
     async def async_update(self):
         _LOGGER.debug("ConnectionStatusSensor updating state: %s", self.state)
 
+
 class CrealitySensor(SensorEntity):
     """Dynamic sensor for a Creality printer data key."""
+
     def __init__(self, entry_id, sensor_key, value):
         self._entry_id = entry_id
         self._sensor_key = sensor_key
@@ -104,7 +117,7 @@ class CrealitySensor(SensorEntity):
             "identifiers": {(DOMAIN, self._entry_id)},
             "name": f"Creality Printer {config.get('ip')}",
             "manufacturer": "Creality",
-            "model": "Unknown Model"
+            "model": "Unknown Model",
         }
 
     async def async_update(self):
