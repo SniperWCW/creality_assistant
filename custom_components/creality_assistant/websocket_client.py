@@ -21,7 +21,7 @@ class CrealityWebSocketClient:
         port = config.get(CONF_PORT)
         password = config.get(CONF_PASSWORD)  # Optional, for future use
         url = f"ws://{ip}:{port}"
-        _LOGGER.info("Connecting to %s", url)
+        _LOGGER.debug("Attempting connection to %s", url)
 
         while not self._stop:
             try:
@@ -32,6 +32,7 @@ class CrealityWebSocketClient:
                     async_dispatcher_send(self.hass, f"{UPDATE_SIGNAL}_{self.entry_id}", sensor_data)
                     _LOGGER.info("Connected to %s", url)
                     async for message in websocket:
+                        _LOGGER.debug("Received message: %s", message)
                         try:
                             data = json.loads(message)
                         except json.JSONDecodeError:
@@ -40,6 +41,7 @@ class CrealityWebSocketClient:
 
                         # Update the shared sensor data dictionary
                         sensor_data.update(data)
+                        _LOGGER.debug("Updated sensor_data: %s", sensor_data)
                         async_dispatcher_send(self.hass, f"{UPDATE_SIGNAL}_{self.entry_id}", sensor_data)
             except Exception as e:
                 _LOGGER.error("Error in websocket connection: %s", e)
@@ -47,10 +49,13 @@ class CrealityWebSocketClient:
                 sensor_data["connection_status"] = f"ERROR: {e}"
                 async_dispatcher_send(self.hass, f"{UPDATE_SIGNAL}_{self.entry_id}", sensor_data)
             # Wait a few seconds before trying to reconnect
+            _LOGGER.debug("Reconnecting in 5 seconds...")
             await asyncio.sleep(5)
 
     async def async_stop(self):
         """Stop the websocket client."""
+        _LOGGER.debug("Stopping WebSocket client for entry %s", self.entry_id)
         self._stop = True
         if self.ws:
             await self.ws.close()
+            _LOGGER.debug("WebSocket closed for entry %s", self.entry_id)
