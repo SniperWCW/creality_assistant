@@ -1,6 +1,6 @@
 # Creality Assistant (HACS Integration)
 
-**Creality Assistant** is a custom Home Assistant integration available via HACS that connects to your Creality 3D printer over a WebSocket connection. It dynamically creates and updates sensor entities based on data received from the printer. **Please note:** This integration is in early development and is currently only being tested on the Creality K2. It is recommended not to use it in production environments.
+**Creality Assistant** is a custom Home Assistant integration available via HACS that connects to your Creality K2 Plus 3D printer over a WebSocket connection. It dynamically creates and updates sensor entities based on data received from the printer. **Please note:** This integration is in early development and is currently only being tested on the Creality K2. It is recommended not to use it in production environments.
 
 ## Features
 
