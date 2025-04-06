@@ -39,8 +39,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     def update_callback(updated_data):
         # Schedule the async update on the main event loop safely
-        asyncio.run_coroutine_threadsafe(
-            _async_update_entities(updated_data), hass.loop
+        hass.loop.call_soon_threadsafe(
+            lambda: asyncio.create_task(_async_update_entities(updated_data))
         )
 
     async_dispatcher_connect(hass, f"{UPDATE_SIGNAL}_{entry_id}", update_callback)
@@ -48,7 +48,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 class ConnectionStatusSensor(SensorEntity):
     """Sensor that shows the connection status of the WebSocket."""
-
     def __init__(self, entry_id, sensor_key, value):
         self._entry_id = entry_id
         self._sensor_key = sensor_key
@@ -67,7 +66,7 @@ class ConnectionStatusSensor(SensorEntity):
         state = self.state
         if state == "CONNECTED":
             return "mdi:check-circle"
-        elif state.startswith("ERROR"):
+        elif isinstance(state, str) and state.startswith("ERROR"):
             return "mdi:alert-circle"
         else:
             return "mdi:close-circle"
@@ -83,7 +82,7 @@ class ConnectionStatusSensor(SensorEntity):
             "identifiers": {(DOMAIN, self._entry_id)},
             "name": f"Creality Printer {config.get('ip')}",
             "manufacturer": "Creality",
-            "model": "Unknown Model",
+            "model": "Unknown Model"
         }
 
     async def async_update(self):
@@ -92,7 +91,6 @@ class ConnectionStatusSensor(SensorEntity):
 
 class CrealitySensor(SensorEntity):
     """Dynamic sensor for a Creality printer data key."""
-
     def __init__(self, entry_id, sensor_key, value):
         self._entry_id = entry_id
         self._sensor_key = sensor_key
@@ -117,7 +115,7 @@ class CrealitySensor(SensorEntity):
             "identifiers": {(DOMAIN, self._entry_id)},
             "name": f"Creality Printer {config.get('ip')}",
             "manufacturer": "Creality",
-            "model": "Unknown Model",
+            "model": "Unknown Model"
         }
 
     async def async_update(self):
