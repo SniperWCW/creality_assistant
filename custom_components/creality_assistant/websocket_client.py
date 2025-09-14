@@ -1,10 +1,8 @@
 import asyncio
 import json
 import logging
-
 import websockets
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-
 from .const import DOMAIN, UPDATE_SIGNAL, CONF_IP, CONF_PORT, CONF_PASSWORD
 
 _LOGGER = logging.getLogger(__name__)
@@ -13,7 +11,6 @@ class CrealityWebSocketClient:
     """WebSocket client for Creality Assistant integration."""
 
     def __init__(self, hass, entry_id):
-        """Initialize the client."""
         self.hass = hass
         self.entry_id = entry_id
         self._stop = False
@@ -24,62 +21,73 @@ class CrealityWebSocketClient:
         config = self.hass.data[DOMAIN][self.entry_id]["config"]
         ip = config.get(CONF_IP)
         port = config.get(CONF_PORT)
-        password = config.get(CONF_PASSWORD)  # reserved for future auth use
+        password = config.get(CONF_PASSWORD)
         url = f"ws://{ip}:{port}"
-        _LOGGER.debug("Attempting connection to %s", url)
+
+        sensor_data = self.hass.data[DOMAIN][self.entry_id]["sensor_data"]
+        # Set initial status
+        sensor_data["connection_status"] = "DISCONNECTED"
+        async_dispatcher_send(self.hass, f"{UPDATE_SIGNAL}_{self.entry_id}", sensor_data)
+
+        _LOGGER.debug("Starting WebSocket client for %s", url)
 
         while not self._stop:
             try:
-                # Disable automatic ping/pong keepalives to match websockets<10 behavior
+                # Connect with longer timeouts
                 async with websockets.connect(
                     url,
-                    ping_interval=None,   # ← no automatic client pings
-                    ping_timeout=None     # ← no pong timeout
+                    ping_interval=30,    # Ping alle 30 Sekunden
+                    ping_timeout=60,     # 60 Sekunden auf Pong warten
+                    close_timeout=10
                 ) as websocket:
                     self.ws = websocket
-
-                    # Mark as connected
-                    sensor_data = self.hass.data[DOMAIN][self.entry_id]["sensor_data"]
                     sensor_data["connection_status"] = "CONNECTED"
-                    async_dispatcher_send(
-                        self.hass,
-                        f"{UPDATE_SIGNAL}_{self.entry_id}",
-                        sensor_data
-                    )
+                    async_dispatcher_send(self.hass, f"{UPDATE_SIGNAL}_{self.entry_id}", sensor_data)
                     _LOGGER.info("Connected to %s", url)
 
-                    # Process incoming messages
                     async for message in websocket:
-                        _LOGGER.debug("Received message: %s", message)
-                        try:
-                            data = json.loads(message)
-                        except json.JSONDecodeError:
-                            _LOGGER.warning("Received non-JSON message: %s", message)
+                        # Binary frames ignorieren
+                        if isinstance(message, (bytes, bytearray)):
+                            _LOGGER.debug("Binary WebSocket frame received, ignoring.")
                             continue
 
-                        # Update shared sensor_data
+                        _LOGGER.debug("Received message: %s", message)
+                        try:
+                            if not message.strip().startswith("{"):
+                                _LOGGER.debug("Skipping non-JSON message: %s", message)
+                                continue
+
+                            data = json.loads(message)
+
+                            # Automatische Konvertierung von Strings zu Zahlen
+                            for k, v in data.items():
+                                if isinstance(v, str):
+                                    try:
+                                        if "." in v:
+                                            data[k] = float(v)
+                                        else:
+                                            data[k] = int(v)
+                                    except ValueError:
+                                        pass  # bleibt String, wenn keine Zahl
+
+                        except (UnicodeDecodeError, json.JSONDecodeError) as e:
+                            _LOGGER.warning("Invalid WebSocket payload ignored: %s", e)
+                            continue
+
                         sensor_data.update(data)
-                        _LOGGER.debug("Updated sensor_data: %s", sensor_data)
-                        async_dispatcher_send(
-                            self.hass,
-                            f"{UPDATE_SIGNAL}_{self.entry_id}",
-                            sensor_data
-                        )
+                        async_dispatcher_send(self.hass, f"{UPDATE_SIGNAL}_{self.entry_id}", sensor_data)
+
+            except (OSError, websockets.exceptions.WebSocketException) as e:
+                _LOGGER.warning("WebSocket connection failed: %s. Reconnecting in 15s...", e)
+                sensor_data["connection_status"] = f"ERROR: {e}"
+                async_dispatcher_send(self.hass, f"{UPDATE_SIGNAL}_{self.entry_id}", sensor_data)
+                await asyncio.sleep(15)
 
             except Exception as e:
-                # Log error and update connection_status sensor
-                _LOGGER.error("WebSocket error for %s: %s", url, e)
-                sensor_data = self.hass.data[DOMAIN][self.entry_id]["sensor_data"]
+                _LOGGER.error("Unexpected WebSocket error: %s. Reconnecting in 30s...", e)
                 sensor_data["connection_status"] = f"ERROR: {e}"
-                async_dispatcher_send(
-                    self.hass,
-                    f"{UPDATE_SIGNAL}_{self.entry_id}",
-                    sensor_data
-                )
-
-            # Wait a bit before reconnecting
-            _LOGGER.debug("Reconnecting in 5 seconds…")
-            await asyncio.sleep(5)
+                async_dispatcher_send(self.hass, f"{UPDATE_SIGNAL}_{self.entry_id}", sensor_data)
+                await asyncio.sleep(30)
 
     async def async_stop(self):
         """Stop the WebSocket client."""
